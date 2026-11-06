@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AerogelShield: MMOD Acoustic Penetration Locator</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            space: {
+              950: '#03050a',
+              900: '#05070d',
+              850: '#080c14',
+              800: '#0d131f',
+              700: '#172033',
+            },
+            cyan: {
+              400: '#22d3ee',
+              500: '#06b6d4',
+            },
+            violet: {
+              400: '#a78bfa',
+              500: '#8b5cf6',
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'],
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- MathJax Configuration & Loader -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      background-color: #03050a;
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .formula-box {
+      background-color: #040812;
+      border: 1px solid #1e293b;
+      box-shadow: inset 0 0 12px rgba(6, 182, 212, 0.05);
+    }
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #05070d;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #06b6d4;
+    }
+    .hud-glass {
+      background: rgba(13, 19, 31, 0.72);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glow-cyan {
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.35);
+    }
+    .glow-red {
+      box-shadow: 0 0 18px rgba(239, 68, 68, 0.45);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-space-950 text-slate-200">
+
+  <!-- TOP GLOBAL NAVIGATION / HEADER -->
+  <header class="border-b border-gray-800 bg-space-900/90 backdrop-blur sticky top-0 z-50 px-4 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center space-x-3">
+      <div class="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+        <i data-lucide="shield-alert" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs uppercase tracking-widest text-cyan-400 font-mono-code font-semibold">NASA SBIR Subtopic Z2.01</span>
+          <span class="px-2 py-0.5 rounded text-[10px] font-mono-code bg-purple-500/10 text-purple-300 border border-purple-500/20">Phase I Dual-Use</span>
+        </div>
+        <h1 class="text-lg lg:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+          AerogelShield <span class="text-gray-500 text-sm font-normal hidden sm:inline">| In-Situ Inflatable Habitat MMOD Acoustic Penetration Locator</span>
+        </h1>
+      </div>
+    </div>
+
+    <!-- Active Tab Selector -->
+    <nav class="flex items-center bg-space-950 p-1 rounded-xl border border-gray-800 text-sm font-medium">
+      <button id="tabBtnSim" onclick="switchTab('sim')" class="px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition-all bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+        <i data-lucide="activity" class="w-4 h-4"></i>
+        <span>Live Telemetry HUD</span>
+      </button>
+      <button id="tabBtnPhysics" onclick="switchTab('physics')" class="px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition-all text-gray-400 hover:text-gray-200">
+        <i data-lucide="atom" class="w-4 h-4"></i>
+        <span>Acoustic Physics</span>
+      </button>
+      <button id="tabBtnProposal" onclick="switchTab('proposal')" class="px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition-all text-gray-400 hover:text-gray-200">
+        <i data-lucide="file-check-2" class="w-4 h-4"></i>
+        <span>NASA SBIR Proposal</span>
+      </button>
+      <button id="tabBtnARR" onclick="switchTab('arr')" class="px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition-all text-gray-400 hover:text-gray-200">
+        <i data-lucide="trending-up" class="w-4 h-4"></i>
+        <span>Commercial ARR ($242M)</span>
+      </button>
+    </nav>
+  </header>
+
+  <!-- MAIN VIEWPORT CONTAINER -->
+  <main class="flex-1 w-full max-w-[1680px] mx-auto p-4 lg:p-6 space-y-6">
+
+    <!-- TAB 1: LIVE SIMULATION & TELEMETRY HUD -->
+    <section id="viewSim" class="space-y-6">
+      
+      <!-- Top Status Banner & Operational Metrics -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="hud-glass p-4 rounded-xl border border-gray-800/80">
+          <div class="flex items-center justify-between text-xs text-gray-400 font-mono-code mb-1">
+            <span>HABITAT BLADDER INTEGRITY</span>
+            <i data-lucide="heart-pulse" class="w-4 h-4 text-emerald-400"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="statIntegrity" class="text-2xl font-bold font-mono-code text-emerald-400">99.88%</span>
+            <span class="text-xs text-gray-500">Nominal 101.3 kPa</span>
+          </div>
+          <div class="w-full bg-gray-800 h-1.5 rounded-full mt-2 overflow-hidden">
+            <div id="barIntegrity" class="bg-emerald-500 h-full w-[99.88%] transition-all duration-300"></div>
+          </div>
+        </div>
+
+        <div class="hud-glass p-4 rounded-xl border border-gray-800/80">
+          <div class="flex items-center justify-between text-xs text-gray-400 font-mono-code mb-1">
+            <span>SHOCK SPECTRAL ACCELERATION</span>
+            <i data-lucide="gauge" class="w-4 h-4 text-cyan-400"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="statAccel" class="text-2xl font-bold font-mono-code text-cyan-300">14.2 g</span>
+            <span class="text-xs text-gray-500 font-mono-code">λ: 0.82 mm</span>
+          </div>
+          <p id="statClassification" class="text-xs text-gray-400 mt-2 flex items-center gap-1 font-mono-code">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span> Normal Background Vibration
+          </p>
+        </div>
+
+        <div class="hud-glass p-4 rounded-xl border border-gray-800/80">
+          <div class="flex items-center justify-between text-xs text-gray-400 font-mono-code mb-1">
+            <span>TRIANGULATION OBSERVER</span>
+            <i data-lucide="crosshair" class="w-4 h-4 text-violet-400"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="statTriangulation" class="text-2xl font-bold font-mono-code text-violet-300">STANDBY</span>
+            <span id="statPunctures" class="text-xs text-gray-500 font-mono-code">Punctures: 0</span>
+          </div>
+          <p id="statDeltaT" class="text-xs text-gray-400 mt-2 font-mono-code">Time-Difference: &Delta;t = 0.00 &mu;s</p>
+        </div>
+
+        <div class="hud-glass p-4 rounded-xl border border-gray-800/80">
+          <div class="flex items-center justify-between text-xs text-gray-400 font-mono-code mb-1">
+            <span>AUTONOMOUS SEALING DRONE</span>
+            <i data-lucide="bot" class="w-4 h-4 text-amber-400"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="statDroneState" class="text-2xl font-bold font-mono-code text-amber-300">PATROL DOCK</span>
+            <span class="text-xs text-gray-500 font-mono-code">Patch Bay: 100%</span>
+          </div>
+          <p id="statDroneAction" class="text-xs text-amber-400/80 mt-2 font-mono-code flex items-center gap-1">
+            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Internal Hull Mag-Lock Active
+          </p>
+        </div>
+      </div>
+
+      <!-- Main Interactive Row: 2D Habitat Hull & Phase-Space Plot -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left: Physical Hull Visualization Canvas (7 Cols) -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="hud-glass rounded-xl p-4 border border-gray-800">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div class="flex items-center gap-2">
+                <i data-lucide="radio" class="w-4 h-4 text-cyan-400 animate-pulse"></i>
+                <h3 class="font-semibold text-white text-sm">TransHab Hull Multilayer Acoustic Topology (Unrolled Outer Shell)</h3>
+              </div>
+              <span class="text-xs font-mono-code text-gray-400">4 Piezo PZT Arrays (S1-S4) | Scale: 12m &times; 6m Cylindrical</span>
+            </div>
+
+            <!-- Canvas Container -->
+            <div class="relative w-full h-[360px] sm:h-[400px] bg-space-950 rounded-lg border border-gray-900 overflow-hidden">
+              <canvas id="hullCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+              <div class="absolute bottom-2 left-3 text-[11px] font-mono-code text-gray-500 pointer-events-none bg-space-950/80 px-2 py-1 rounded border border-gray-800">
+                Click anywhere to inject manual Kinetic/Acoustic event
+              </div>
+              <div id="alertOverlay" class="absolute top-3 right-3 hidden px-3 py-1.5 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-300 font-mono-code text-xs flex items-center gap-2 glow-red">
+                <i data-lucide="alert-triangle" class="w-4 h-4 animate-bounce"></i>
+                <span>HYPERVELOCITY PUNCTURE CONFIRMED</span>
+              </div>
+            </div>
+
+            <!-- Hull Simulation Controls -->
+            <div class="mt-4 pt-3 border-t border-gray-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div class="flex items-center gap-2">
+                <span class="text-gray-400 font-mono-code">Acoustic Material:</span>
+                <span class="px-2 py-0.5 rounded bg-gray-800 text-cyan-300 font-mono-code border border-gray-700">Aerogel Matrix + Kevlar/Nextel Bumper</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="injectDockingThud()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium transition-all flex items-center gap-1.5">
+                  <i data-lucide="package-check" class="w-3.5 h-3.5 text-blue-400"></i>
+                  <span>Simulate Docking Thud (Low $a$, High $\lambda$)</span>
+                </button>
+                <button onclick="injectHypervelocityStrike()" class="px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900/60 text-rose-200 border border-rose-700/60 font-medium transition-all flex items-center gap-1.5">
+                  <i data-lucide="zap" class="w-3.5 h-3.5 text-rose-400"></i>
+                  <span>Inject 7.2 km/s MMOD Strike (High $a$, Shock $\lambda$)</span>
+                </button>
+                <button onclick="clearAllEvents()" class="px-2.5 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition-all">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Primary Diagnostic Phase-Space Chart (5 Cols) -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="hud-glass rounded-xl p-4 border border-gray-800 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-2">
+              <div>
+                <h3 class="font-semibold text-white text-sm flex items-center gap-2">
+                  <i data-lucide="target" class="w-4 h-4 text-cyan-400"></i>
+                  Phase-Space Diagnostic Observer
+                </h3>
+                <p class="text-[11px] font-mono-code text-gray-400">X: Acoustic Wavelength $\lambda$ (mm) | Y: Acceleration $a$ ($g$)</p>
+              </div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono-code bg-cyan-950 text-cyan-400 border border-cyan-800">
+                PZT Spectral Filter
+              </span>
+            </div>
+
+            <!-- Phase-Space Chart Container -->
+            <div class="w-full h-[280px] sm:h-[310px] relative bg-space-950/60 rounded-lg p-2 border border-gray-900">
+              <canvas id="phaseSpaceChart"></canvas>
+            </div>
+
+            <!-- Real-time Classifier Diagnostic Card -->
+            <div class="mt-3 p-3 rounded-lg bg-space-900 border border-gray-800 text-xs space-y-1 font-mono-code">
+              <div class="flex justify-between">
+                <span class="text-gray-400">Discriminant Function $D(a, \lambda)$:</span>
+                <span id="valDiscriminant" class="text-emerald-400 font-bold">-2.41 (BENIGN)</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Shock Wave Velocity in Aerogel ($c_s$):</span>
+                <span class="text-cyan-300">1,240 m/s &plusmn; 45 m/s</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Autonomous Intercept Vector:</span>
+                <span id="valVector" class="text-gray-400">IDLE - Holding Position</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secondary Telemetry Plots & Dynamic Controls -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+        
+        <!-- Telemetry Plot 1: Peak PZT Acoustic Shock Transient (4 Cols) -->
+        <div class="md:col-span-4 hud-glass rounded-xl p-4 border border-gray-800">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-300 font-mono-code">Sensor Shock Envelope (100 kHz)</h4>
+            <span class="text-[10px] text-cyan-400 font-mono-code">Piezo S1 Voltage</span>
+          </div>
+          <div class="h-[150px] w-full">
+            <canvas id="telemetryShockChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Telemetry Plot 2: Internal Compartment Differential Pressure (4 Cols) -->
+        <div class="md:col-span-4 hud-glass rounded-xl p-4 border border-gray-800">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-300 font-mono-code">Habitat Hull Pressure Delta</h4>
+            <span id="lblPressureDrop" class="text-[10px] text-emerald-400 font-mono-code">&Delta;P = 0.00 kPa/min</span>
+          </div>
+          <div class="h-[150px] w-full">
+            <canvas id="telemetryPressureChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Environmental Closed-Loop Control Sliders (4 Cols) -->
+        <div class="md:col-span-4 hud-glass rounded-xl p-4 border border-gray-800 flex flex-col justify-between">
+          <div>
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-300 font-mono-code mb-3">Closed-Loop Sensor Thresholds</h4>
+            <div class="space-y-3 text-xs">
+              <div>
+                <div class="flex justify-between text-gray-400 font-mono-code mb-1">
+                  <span>PZT Trigger Sensitivity ($a_{\text{thresh}}$):</span>
+                  <span id="sliderSensVal" class="text-cyan-400">120 g</span>
+                </div>
+                <input id="sliderSens" type="range" min="30" max="400" value="120" class="w-full accent-cyan-500 bg-gray-800 rounded-lg h-1.5 cursor-pointer" oninput="updateSensorSensitivity(this.value)">
+              </div>
+
+              <div>
+                <div class="flex justify-between text-gray-400 font-mono-code mb-1">
+                  <span>Wavelength Cutoff ($\lambda_{\text{crit}}$):</span>
+                  <span id="sliderCutoffVal" class="text-purple-400">1.8 mm</span>
+                </div>
+                <input id="sliderCutoff" type="range" min="0.4" max="4.0" step="0.1" value="1.8" class="w-full accent-purple-500 bg-gray-800 rounded-lg h-1.5 cursor-pointer" oninput="updateCutoffWavelength(this.value)">
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-3 border-t border-gray-800/80 flex items-center justify-between">
+            <span class="text-[11px] text-gray-400 font-mono-code">Autonomous Sealing Drone Mode</span>
+            <button id="btnAutoMode" onclick="toggleAutoDrone()" class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-mono-code flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span> ACTIVE AUTO-VECTORED
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB 2: CORE PHYSICS & MATHEMATICAL MODEL -->
+    <section id="viewPhysics" class="space-y-6 hidden">
+      <div class="border-b border-gray-800 pb-4">
+        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+          <i data-lucide="atom" class="w-6 h-6 text-cyan-400"></i>
+          Hypervelocity Acoustic Emission (AE) & Transverse Shock Wave Inversion
+        </h2>
+        <p class="text-sm text-gray-400 mt-1">
+          Distinguishing multi-kilometer-per-second hypervelocity penetrations from benign robotic berthing, astronaut EVA bumps, and internal thermal pops inside Nextel/Aerogel flexible shielding.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Card 1: Hypervelocity Shock & Rankine-Hugoniot State -->
+        <div class="hud-glass p-5 rounded-xl border border-gray-800 space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center font-mono-code font-bold text-sm">01</span>
+            <h3 class="font-semibold text-white text-base">Rankine-Hugoniot Shock Hugoniot in Multi-Layer Aerogel</h3>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            When a hypervelocity micrometeorite ($v_p \ge 7 \text{ km/s}$) strikes the sacrificial Nextel bumper, kinetic energy converts into an explosive plasma plume and extreme planar shock waves propagating into the compressed nanoporous aerogel core (${\rm SiO_2}$ density $\rho_0 \approx 0.08 \text{ g/cm}^3$):
+          </p>
+          <div class="formula-box p-3 rounded-lg text-center text-cyan-300 text-sm overflow-x-auto my-2">
+            $$U_s = c_0 + s \, u_p, \quad P_H = \rho_0 U_s u_p = \rho_0 \left(c_0 u_p + s \, u_p^2\right)$$
+          </div>
+          <p class="text-xs text-gray-400">
+            Because aerogel pore collapse occurs at gigapascal pressures ($P_H > 5 \text{ GPa}$), high-frequency acoustic modes ($f > 300\text{ kHz}$) are immediately excited with ultra-short wavelengths $\lambda = c_s / f < 1.5\text{ mm}$, yielding accelerations $a \sim 10^3 - 10^5 g$.
+          </p>
+        </div>
+
+        <!-- Card 2: Modal Lamb Wave Dispersion & Spectral Acceleration -->
+        <div class="hud-glass p-5 rounded-xl border border-gray-800 space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center font-mono-code font-bold text-sm">02</span>
+            <h3 class="font-semibold text-white text-base">Lamb Wave Dispersion & $(a, \lambda)$ Discriminant</h3>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            Flexible bladder walls behave as multi-layered thin plates supporting zero-order antisymmetric ($A_0$) and symmetric ($S_0$) Lamb wave modes. The structural acoustic acceleration spectrum measured by bonded PZT discs is given by:
+          </p>
+          <div class="formula-box p-3 rounded-lg text-center text-violet-300 text-sm overflow-x-auto my-2">
+            $$a(\omega) = -\omega^2 \left[ \frac{\kappa \cdot E_{\rm kin}}{2\pi r \cdot \rho h c_p} \right] e^{-\alpha(\omega) r}, \quad \lambda(\omega) = \frac{2\pi c_p(\omega)}{\omega}$$
+          </div>
+          <p class="text-xs text-gray-400">
+            Mundane events (robotic arm grapple, docking port latching) introduce momentum transfer over milliseconds ($\tau \ge 10\text{ ms}$), restricting energy to low frequencies ($f < 2\text{ kHz}$, $\lambda > 30\text{ cm}$) and gentle accelerations ($a < 2 g$). The $(a, \lambda)$ phase-space cleanly separates the two regimes by 4 orders of magnitude.
+          </p>
+        </div>
+
+        <!-- Card 3: Non-Iterative Hyperbolic Time Difference of Arrival (TDOA) -->
+        <div class="hud-glass p-5 rounded-xl border border-gray-800 space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-mono-code font-bold text-sm">03</span>
+            <h3 class="font-semibold text-white text-base">Triangulation via Non-Iterative Hyperbolic Inversion</h3>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            Four distributed Lead Zirconate Titanate (PZT-5H) piezoelectric sensors record shock onset times $t_i$ via constant-fraction discriminators (CFD) at nanosecond resolution. The spatial coordinate of penetration $(x_0, y_0)$ satisfies the nonlinear system:
+          </p>
+          <div class="formula-box p-3 rounded-lg text-center text-emerald-300 text-sm overflow-x-auto my-2">
+            $$d_i = \sqrt{(x_i - x_0)^2 + (y_i - y_0)^2} = d_1 + c_g (t_i - t_1), \quad \forall i \in \{2, 3, 4\}$$
+          </div>
+          <p class="text-xs text-gray-400">
+            Applying Bancroft's closed-form pseudo-inverse eliminates iterative divergence, converging in under $4.2\,\mu\text{s}$ on flight-qualified radiation-hardened FPGA microcontrollers, pinpointing the puncture within $\pm 4.5\text{ mm}$.
+          </p>
+        </div>
+
+        <!-- Card 4: Autonomous Robotic Sealing & Vector Mechanics -->
+        <div class="hud-glass p-5 rounded-xl border border-gray-800 space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-mono-code font-bold text-sm">04</span>
+            <h3 class="font-semibold text-white text-base">Autonomous Drone Magnetic Vectoring & Patch Adhesion</h3>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            Upon confirmation of penetration ($D(a, \lambda) > 0$), the internal atmospheric pressure delta triggers magnetic crawler drone dispatch. The drone tracks the acoustic coordinate $(x_0, y_0)$ using planar magnetic hull guide strips:
+          </p>
+          <div class="formula-box p-3 rounded-lg text-center text-amber-300 text-sm overflow-x-auto my-2">
+            $$\dot{m}_{\rm leak} = C_d A_{\rm hole} P_{\rm hab} \sqrt{\frac{\gamma M}{R T} \left(\frac{2}{\gamma+1}\right)^{\frac{\gamma+1}{\gamma-1}}}, \quad \tau_{\rm seal} \le \frac{V_{\rm hab} \Delta P_{\rm allow}}{\dot{m}_{\rm leak} R_{\rm spec} T}$$
+          </div>
+          <p class="text-xs text-gray-400">
+            Quick-curing polysiloxane elastomer patches are pneumatically stamped onto the multi-layer bladder puncture within 45 seconds, arresting pressure decline before emergency cabin evacuation thresholds are reached.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB 3: NASA SBIR/STTR PROPOSAL & HARDWARE TRANSITION -->
+    <section id="viewProposal" class="space-y-6 hidden">
+      <!-- Header Banner -->
+      <div class="hud-glass p-6 rounded-xl border border-cyan-500/30 glow-cyan">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <span class="px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-mono-code font-semibold">
+              NASA SBIR/STTR FY2026 Solicitation Topic Z2.01
+            </span>
+            <h2 class="text-xl font-bold text-white mt-2">
+              AerogelShield: Autonomous Acoustic Triangulation & Micro-Drone Sealing for Inflatable Deep-Space Habitats
+            </h2>
+            <p class="text-xs text-gray-300 mt-1 max-w-3xl">
+              Focus: Orbital Debris Mitigation, In-Situ Structural Health Monitoring (SHM), and Self-Healing TransHab Architectures for Lunar Gateway and Mars Transit Vehicles.
+            </p>
+          </div>
+          <div class="text-right">
+            <div class="text-xs font-mono-code text-gray-400">PHASE I TOTAL ALLOCATION</div>
+            <div class="text-2xl font-bold font-mono-code text-cyan-400">$225,000</div>
+            <div class="text-[11px] font-mono-code text-purple-300">6 Months (TRL 3 &rarr; TRL 5)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Partner & Allocation Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="hud-glass p-5 rounded-xl border border-gray-800">
+          <div class="flex items-center gap-2 mb-3 text-cyan-400">
+            <i data-lucide="building" class="w-5 h-5"></i>
+            <h3 class="font-semibold text-white text-sm">Prime Contractor</h3>
+          </div>
+          <div class="text-base font-bold text-gray-100">AeroAcoustics Dynamics Inc.</div>
+          <p class="text-xs text-gray-400 mt-1">Lead systems integrator, real-time FPGA algorithm development, autonomous sealing drone payload architecture.</p>
+          <div class="mt-4 pt-3 border-t border-gray-800 text-xs font-mono-code flex justify-between">
+            <span class="text-gray-400">Prime Share:</span>
+            <span class="text-cyan-300 font-bold">$157,500 (70.0%)</span>
+          </div>
+        </div>
+
+        <div class="hud-glass p-5 rounded-xl border border-purple-500/40">
+          <div class="flex items-center gap-2 mb-3 text-purple-400">
+            <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+            <h3 class="font-semibold text-white text-sm">STTR Research Institution Partner</h3>
+          </div>
+          <div class="text-base font-bold text-gray-100">University of Central Florida (UCF)</div>
+          <p class="text-xs text-gray-400 mt-1">Center for Advanced Turbomachinery & Energy Research (CATER) & Hypervelocity Light Gas Gun Laboratory.</p>
+          <div class="mt-4 pt-3 border-t border-gray-800 text-xs font-mono-code flex justify-between">
+            <span class="text-gray-400">STTR 30% Subcontract:</span>
+            <span class="text-purple-300 font-bold">$67,500 (30.0%)</span>
+          </div>
+        </div>
+
+        <div class="hud-glass p-5 rounded-xl border border-gray-800">
+          <div class="flex items-center gap-2 mb-3 text-emerald-400">
+            <i data-lucide="test-tube" class="w-5 h-5"></i>
+            <h3 class="font-semibold text-white text-sm">Testing Facilities & Validation</h3>
+          </div>
+          <div class="text-base font-bold text-gray-100">Two-Stage Light Gas Gun (LGG)</div>
+          <p class="text-xs text-gray-400 mt-1">7.5 km/s aluminum and nylon projectile impact testing into cryogenic TransHab multi-layer aerogel test articles under $10^{-6}$ Torr vacuum.</p>
+          <div class="mt-4 pt-3 border-t border-gray-800 text-xs font-mono-code flex justify-between">
+            <span class="text-gray-400">Test Shots:</span>
+            <span class="text-emerald-400 font-bold">16 Hypervelocity Runs</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6-Month Work Breakdown Schedule -->
+      <div class="hud-glass p-5 rounded-xl border border-gray-800 space-y-4">
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-gray-300 font-mono-code flex items-center gap-2">
+          <i data-lucide="calendar" class="w-4 h-4 text-cyan-400"></i>
+          Phase I Technical Milestones & Work Breakdown Structure (Months 1–6)
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+          <div class="p-4 rounded-lg bg-space-950 border border-gray-800 space-y-2">
+            <div class="flex items-center justify-between font-mono-code">
+              <span class="text-cyan-400 font-bold">Month 1–2</span>
+              <span class="px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 text-[10px]">M1</span>
+            </div>
+            <h4 class="font-bold text-white text-sm">Kinetic & Acoustic Modeling</h4>
+            <p class="text-gray-400 leading-relaxed">
+              Finite-element hydrocode simulations (AUTODYN/LS-DYNA) of 0.1mm–2.0mm MMOD hyper-impacts in flexible silica aerogel/Kevlar composites.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-lg bg-space-950 border border-gray-800 space-y-2">
+            <div class="flex items-center justify-between font-mono-code">
+              <span class="text-cyan-400 font-bold">Month 3–4</span>
+              <span class="px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 text-[10px]">M2</span>
+            </div>
+            <h4 class="font-bold text-white text-sm">State Observer Inversion</h4>
+            <p class="text-gray-400 leading-relaxed">
+              Implement Bancroft hyperbolic TDOA algorithm on FPGA board. Calibrate $(a, \lambda)$ boundary discriminant against baseline modal vibration noise.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-lg bg-space-950 border border-gray-800 space-y-2">
+            <div class="flex items-center justify-between font-mono-code">
+              <span class="text-cyan-400 font-bold">Month 5</span>
+              <span class="px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 text-[10px]">M3</span>
+            </div>
+            <h4 class="font-bold text-white text-sm">UCF Light Gas Gun Test</h4>
+            <p class="text-gray-400 leading-relaxed">
+              Live impact trials at UCF CATER facility firing spherical 0.5mm projectiles at 7.1 km/s into sensorized TransHab coupon targets. Real-time localization proof.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-lg bg-space-950 border border-gray-800 space-y-2">
+            <div class="flex items-center justify-between font-mono-code">
+              <span class="text-cyan-400 font-bold">Month 6</span>
+              <span class="px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 text-[10px]">M4</span>
+            </div>
+            <h4 class="font-bold text-white text-sm">Phase II Transition Package</h4>
+            <p class="text-gray-400 leading-relaxed">
+              Complete engineering design and specification for full-scale autonomous sealing drone prototype and $950,000 Phase II flight-testing plan.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase II & Commercialization Transition Path -->
+      <div class="hud-glass p-5 rounded-xl border border-gray-800 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h4 class="text-sm font-bold text-white flex items-center gap-2">
+            <i data-lucide="rocket" class="w-4 h-4 text-violet-400"></i>
+            NASA Phase II Transition Roadmap ($950,000 – $1.25M)
+          </h4>
+          <p class="text-xs text-gray-400 mt-1 max-w-2xl">
+            Direct integration with commercial space station developers (Vast Space Haven-1, Axiom Station, Sierra Space LIFE habitat) and NASA Gateway Human Landing System (HLS).
+          </p>
+        </div>
+        <a href="mailto:support@rfwavecode.com" class="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-space-950 font-bold text-xs flex items-center gap-2 transition-all">
+          <i data-lucide="mail" class="w-4 h-4"></i> Contact Principal Investigator
+        </a>
+      </div>
+    </section>
+
+    <!-- TAB 4: COMMERCIAL & NATIONWIDE ARR BREAKDOWN -->
+    <section id="viewARR" class="space-y-6 hidden">
+      <!-- Top Overview Banner -->
+      <div class="hud-glass p-6 rounded-xl border border-gray-800 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <span class="px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 text-xs font-mono-code font-semibold">
+            CIVIL & COMMERCIAL EXPANSION
+          </span>
+          <h2 class="text-2xl font-bold text-white mt-2">
+            Total Addressable Market: $242.4M Mature SaaS ARR
+          </h2>
+          <p class="text-xs text-gray-400 mt-1 max-w-3xl">
+            Expanding high-speed acoustic stress-wave localization from deep-space habitats to commercial LEO platforms, pressurized airliner hulls, cryo-propellant tanks, and subsea pipelines.
+          </p>
+        </div>
+        <div class="bg-space-950 p-4 rounded-xl border border-gray-800 text-right">
+          <div class="text-xs font-mono-code text-gray-400">ENTERPRISE VALUATION (10x MULTIPLE)</div>
+          <div class="text-2xl font-bold font-mono-code text-emerald-400">$2.42 BILLION</div>
+          <div class="text-[11px] font-mono-code text-cyan-300">Software IP & Sensing Telemetry License</div>
+        </div>
+      </div>
+
+      <!-- ARR Table -->
+      <div class="hud-glass rounded-xl border border-gray-800 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+          <h3 class="font-semibold text-white text-sm flex items-center gap-2 font-mono-code">
+            <i data-lucide="table" class="w-4 h-4 text-cyan-400"></i>
+            Commercial Industry Verticals & Runtime SaaS Pricing Model
+          </h3>
+          <span class="text-xs font-mono-code text-gray-400">6 Scalable Sectors</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono-code">
+            <thead class="bg-space-950 text-gray-400 border-b border-gray-800">
+              <tr>
+                <th class="px-5 py-3 font-semibold">Target Vertical</th>
+                <th class="px-5 py-3 font-semibold">Target Application</th>
+                <th class="px-5 py-3 font-semibold">Unit Pricing Metric</th>
+                <th class="px-5 py-3 font-semibold">Nationwide Asset Base</th>
+                <th class="px-5 py-3 font-semibold text-right">Mature Annual ARR</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800/60 text-gray-300">
+              <tr class="hover:bg-cyan-500/5 transition-colors">
+                <td class="px-5 py-3.5 font-bold text-white flex items-center gap-2">
+                  <i data-lucide="orbit" class="w-4 h-4 text-cyan-400"></i> Commercial Space Stations
+                </td>
+                <td class="px-5 py-3.5 text-gray-400">Axiom, Sierra LIFE, Vast Haven Modules</td>
+                <td class="px-5 py-3.5">$480,000 / module / yr</td>
+                <td class="px-5 py-3.5">42 Active Modules</td>
+                <td class="px-5 py-3.5 text-right font-bold text-cyan-300">$20.16M</td>
+              </tr>
+              <tr class="hover:bg-cyan-500/5 transition-colors">
+                <td class="px-5 py-3.5 font-bold text-white flex items-center gap-2">
+                  <i data-lucide="plane" class="w-4 h-4 text-blue-400"></i> Commercial High-Altitude Aviation
+                </td>
+                <td class="px-5 py-3.5 text-gray-400">Composite Fuselage Sudden Decompression Sensing</td>
+                <td class="px-5 py-3.5">$9,600 / aircraft / yr</td>
+                <td class="px-5 py-3.5">8,400 Commercial Jets</td>
+                <td class="px-5 py-3.5 text-right font-bold text-cyan-300">$80.64M</td>
+              </tr>
+              <tr class="hover:bg-cyan-500/5 transition-colors">
+                <td class="px-5 py-3.5 font-bold text-white flex items-center gap-2">
+                  <i data-lucide="fuel" class="w-4 h-4 text-amber-400"></i> Cryogenic Fuel Depots (${\rm LH_2/LOX}$)
+                </td>
+                <td class="px-5 py-3.5 text-gray-400">Orbital & Ground Vacuum-Jacketed Tank Wall SHM</td>
+                <td class="px-5 py-3.5">$36,000 / tank / yr</td>
+                <td class="px-5 py-3.5">1,250 Storage Tanks</td>
+                <td class="px-5 py-3.5 text-right font-bold text-cyan-300">$45.00M</td>
+              </tr>
+              <tr class="hover:bg-cyan-500/5 transition-colors">
+                <td class="px-5 py-3.5 font-bold text-white flex items-center gap-2">
+                  <i data-lucide="waves" class="w-4 h-4 text-emerald-400"></i> Subsea Pressurized Pipelines
+                </td>
+                <td class="px-5 py-3.5 text-gray-400">Ultra-High Pressure Hydraulic Wall Rupture Alert</td>
+                <td class="px-5 py-3.5">$1,800 / km / yr</td>
+                <td class="px-5 py-3.5">32,000 Offshore km</td>
+                <td class="px-5 py-3.5 text-right font-bold text-cyan-300">$57.60M</td>
+              </tr>
+              <tr class="hover:bg-cyan-500/5 transition-colors">
+                <td class="px-5 py-3.5 font-bold text-white flex items-center gap-2">
+                  <i data-lucide="cpu" class="w-4 h-4 text-purple-400"></i> Semiconductor EUV Chambers
+                </td>
+                <td class="px-5 py-3.5 text-gray-400">High-Vacuum Pellicle & Laser Droplet Debris Detection</td>
+                <td class="px-5 py-3.5">$65,000 / EUV Scanner / yr</td>
+                <td class="px-5 py-3.5">400 High-NA EUV Systems</td>
+                <td class="px-5 py-3.5 text-right font-bold text-cyan-300">$26.00M</td>
+              </tr>
+              <tr class="hover:bg-cyan-500/5 transition-colors">
+                <td class="px-5 py-3.5 font-bold text-white flex items-center gap-2">
+                  <i data-lucide="satellite" class="w-4 h-4 text-rose-400"></i> LEO Megaconstellation Hubs
+                </td>
+                <td class="px-5 py-3.5 text-gray-400">Critical Optical Inter-satellite Link Enclosure SHM</td>
+                <td class="px-5 py-3.5">$4,000 / bus / yr</td>
+                <td class="px-5 py-3.5">3,250 Core Nodes</td>
+                <td class="px-5 py-3.5 text-right font-bold text-cyan-300">$13.00M</td>
+              </tr>
+            </tbody>
+            <tfoot class="bg-space-950 text-white font-bold border-t border-gray-800">
+              <tr>
+                <td colspan="4" class="px-5 py-4 text-right uppercase tracking-wider text-xs">Total Addressable Nationwide ARR:</td>
+                <td class="px-5 py-4 text-right text-base text-emerald-400 font-bold">$242.40M</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Industry Deep-Dive Cards: Physics + Plain English for Execs -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <div class="hud-glass p-5 rounded-xl border border-gray-800 space-y-2">
+          <h4 class="font-bold text-white text-sm flex items-center gap-2">
+            <i data-lucide="orbit" class="w-4 h-4 text-cyan-400"></i>
+            Commercial Space Stations (Axiom & Sierra LIFE)
+          </h4>
+          <p class="text-xs text-cyan-300">
+            <strong>Physics in 1 Sentence:</strong> Hypervelocity orbital debris creates instant planar Lamb wave shocks through multi-layer Nextel bumpers that decay at predictable attenuation rates across flexible polymer bladders.
+          </p>
+          <p class="text-xs text-gray-400 leading-relaxed">
+            <strong>Why Others Missed This (Plain English for Executives):</strong> Incumbents rely on slow cabin pressure drop sensors. By the time a barometric sensor notices pressure falling, thousands of liters of air have leaked and the puncture remains invisible behind layers of interior insulation. AerogelShield pinpoints the microscopic hole within microseconds.
+          </p>
+        </div>
+
+        <div class="hud-glass p-5 rounded-xl border border-gray-800 space-y-2">
+          <h4 class="font-bold text-white text-sm flex items-center gap-2">
+            <i data-lucide="plane" class="w-4 h-4 text-blue-400"></i>
+            Commercial Composite Aviation Fuselages
+          </h4>
+          <p class="text-xs text-cyan-300">
+            <strong>Physics in 1 Sentence:</strong> High-altitude uncontained engine rotor fragments or hail produce localized gigahertz stress fractures distinct from standard turbulent aerodynamic buffet noise.
+          </p>
+          <p class="text-xs text-gray-400 leading-relaxed">
+            <strong>Why Others Missed This (Plain English for Executives):</strong> Legacy aviation uses scheduled manual tap-testing with coin hammers during heavy C-checks. AerogelShield converts the existing aircraft composite skin into a self-monitoring acoustic ear that instantly tells pilots where hull delamination or micro-punctures occurred.
+          </p>
+        </div>
+
+        <div class="hud-glass p-5 rounded-xl border border-gray-800 space-y-2">
+          <h4 class="font-bold text-white text-sm flex items-center gap-2">
+            <i data-lucide="fuel" class="w-4 h-4 text-amber-400"></i>
+            Cryogenic Fuel Depots (${\rm LH_2/LOX}$)
+          </h4>
+          <p class="text-xs text-cyan-300">
+            <strong>Physics in 1 Sentence:</strong> Microscopic vacuum-jacket punctures cause explosive boiling of sub-cooled fluids that trigger supersonic acoustic cavitation spikes in the outer tank wall.
+          </p>
+          <p class="text-xs text-gray-400 leading-relaxed">
+            <strong>Why Others Missed This (Plain English for Executives):</strong> Industrial tank yards only monitor overall boil-off gas rate. By the time an operator notices excess boil-off, the insulation vacuum is entirely ruined. Our system alerts technicians to the pinpoint leak point before the vacuum collapses.
+          </p>
+        </div>
+
+        <div class="hud-glass p-5 rounded-xl border border-gray-800 space-y-2">
+          <h4 class="font-bold text-white text-sm flex items-center gap-2">
+            <i data-lucide="cpu" class="w-4 h-4 text-purple-400"></i>
+            Semiconductor EUV High-Vacuum Scanners
+          </h4>
+          <p class="text-xs text-cyan-300">
+            <strong>Physics in 1 Sentence:</strong> Droplet-generator tin micro-spatter colliding with hydrogen-purged pellicle membranes radiates high-frequency Rayleigh surface acoustic waves.
+          </p>
+          <p class="text-xs text-gray-400 leading-relaxed">
+            <strong>Why Others Missed This (Plain English for Executives):</strong> Foundries wait for optical wafer inspection to catch blurred lithography defects hours after hundreds of $10,000 wafers are already contaminated. AerogelShield identifies pellicle damage in real-time, preventing multi-million dollar scrap runs.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Footer Call to Action -->
+      <div class="hud-glass p-5 rounded-xl border border-gray-800 text-center space-y-2">
+        <h4 class="text-white font-bold text-sm">Enterprise Licensing & University Partnership Inquiries</h4>
+        <p class="text-xs text-gray-400 max-w-xl mx-auto">
+          For technical whitepapers, light-gas gun validation test data, and commercial sensor kit inquiries, contact our aerospace transition office:
+        </p>
+        <div class="pt-2">
+          <a href="mailto:support@rfwavecode.com" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-space-950 font-bold text-xs transition-all">
+            <i data-lucide="mail" class="w-4 h-4"></i> support@rfwavecode.com
+          </a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- JAVASCRIPT LOGIC & ENGINE -->
+  <script>
+    // Tab switching mapping dictionary
+    const tabMapping = {
+      'sim': { viewId: 'viewSim', btnId: 'tabBtnSim' },
+      'physics': { viewId: 'viewPhysics', btnId: 'tabBtnPhysics' },
+      'proposal': { viewId: 'viewProposal', btnId: 'tabBtnProposal' },
+      'arr': { viewId: 'viewARR', btnId: 'tabBtnARR' }
+    };
+
+    function switchTab(tabKey) {
+      Object.keys(tabMapping).forEach(key => {
+        const item = tabMapping[key];
+        const viewEl = document.getElementById(item.viewId);
+        const btnEl = document.getElementById(item.btnId);
+
+        if (key === tabKey) {
+          viewEl.classList.remove('hidden');
+          btnEl.className = 'px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition-all bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-medium';
+        } else {
+          viewEl.classList.add('hidden');
+          btnEl.className = 'px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition-all text-gray-400 hover:text-gray-200 font-medium';
+        }
+      });
+
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise();
+      }
+
+      if (tabKey === 'sim') {
+        setTimeout(() => {
+          resizeCanvas();
+        }, 50);
+      }
+    }
+
+    // SIMULATION STATE & VARIABLES
+    const state = {
+      hullWidth: 12.0, // meters
+      hullHeight: 6.0, // meters
+      nominalPressure: 101.3, // kPa
+      currentPressure: 101.3,
+      integrity: 99.88,
+      accel: 14.2,
+      wavelength: 0.82,
+      discriminant: -2.41,
+      punctures: [], // {x, y, timestamp, sealed: bool, size}
+      shockWaves: [], // {x, y, radius, maxRadius, alpha, color}
+      sensors: [
+        { id: 'S1', x: 0.15, y: 0.20, label: 'S1 (PZT)' },
+        { id: 'S2', x: 0.85, y: 0.20, label: 'S2 (PZT)' },
+        { id: 'S3', x: 0.85, y: 0.80, label: 'S3 (PZT)' },
+        { id: 'S4', x: 0.15, y: 0.80, label: 'S4 (PZT)' }
+      ],
+      drone: {
+        x: 0.50,
+        y: 0.50,
+        targetX: 0.50,
+        targetY: 0.50,
+        speed: 0.007,
+        status: 'PATROL DOCK',
+        patching: false,
+        autoMode: true
+      },
+      thresholdAccel: 120.0,
+      cutoffWavelength: 1.8,
+      backgroundNoiseTick: 0
+    };
+
+    // DOM References
+    const hullCanvas = document.getElementById('hullCanvas');
+    const ctx = hullCanvas.getContext('2d');
+    const alertOverlay = document.getElementById('alertOverlay');
+
+    // Stats Elements
+    const statIntegrity = document.getElementById('statIntegrity');
+    const barIntegrity = document.getElementById('barIntegrity');
+    const statAccel = document.getElementById('statAccel');
+    const statClassification = document.getElementById('statClassification');
+    const statTriangulation = document.getElementById('statTriangulation');
+    const statPunctures = document.getElementById('statPunctures');
+    const statDeltaT = document.getElementById('statDeltaT');
+    const statDroneState = document.getElementById('statDroneState');
+    const statDroneAction = document.getElementById('statDroneAction');
+    const valDiscriminant = document.getElementById('valDiscriminant');
+    const valVector = document.getElementById('valVector');
+    const lblPressureDrop = document.getElementById('lblPressureDrop');
+
+    // CHART.JS INSTANCES
+    let phaseSpaceChart = null;
+    let telemetryShockChart = null;
+    let telemetryPressureChart = null;
+
+    function initCharts() {
+      // 1. Phase-Space Scatter Plot (Wavelength lambda vs Acceleration a)
+      const ctxPhase = document.getElementById('phaseSpaceChart').getContext('2d');
+      
+      // Generate Nominal Boundary Corridor Data
+      const nominalCurve = [];
+      for (let lam = 0.2; lam <= 6.0; lam += 0.2) {
+        // Mundane docking & vibrations: high lambda, low accel
+        const acc = Math.max(0.5, 30.0 / (lam * lam + 0.8));
+        nominalCurve.push({ x: lam, y: acc });
+      }
+
+      // Hazard Threshold Line
+      const hazardBoundary = [
+        { x: 0.1, y: 120 },
+        { x: 1.8, y: 120 },
+        { x: 1.8, y: 1000 },
+        { x: 0.1, y: 1000 }
+      ];
+
+      phaseSpaceChart = new Chart(ctxPhase, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            {
+              label: 'Live Operating Point',
+              data: [{ x: state.wavelength, y: state.accel }],
+              backgroundColor: '#06b6d4',
+              borderColor: '#22d3ee',
+              borderWidth: 2,
+              pointRadius: 8,
+              pointHoverRadius: 10,
+              showLine: false,
+              order: 1
+            },
+            {
+              label: 'Hypervelocity Hazard Zone',
+              data: [
+                { x: 0.1, y: 120 },
+                { x: 1.8, y: 120 },
+                { x: 1.8, y: 1000 },
+                { x: 0.1, y: 1000 }
+              ],
+              showLine: true,
+              fill: true,
+              backgroundColor: 'rgba(239, 68, 68, 0.12)',
+              borderColor: 'rgba(239, 68, 68, 0.7)',
+              borderDash: [5, 5],
+              pointRadius: 0,
+              order: 3
+            },
+            {
+              label: 'Mundane Docking Corridor',
+              data: [
+                { x: 1.8, y: 0.5 },
+                { x: 6.0, y: 0.5 },
+                { x: 6.0, y: 45 },
+                { x: 1.8, y: 45 }
+              ],
+              showLine: true,
+              fill: true,
+              backgroundColor: 'rgba(59, 130, 246, 0.10)',
+              borderColor: 'rgba(59, 130, 246, 0.4)',
+              borderDash: [4, 4],
+              pointRadius: 0,
+              order: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: 'linear',
+              position: 'bottom',
+              min: 0,
+              max: 6.0,
+              title: {
+                display: true,
+                text: 'Acoustic Wavelength λ (mm)',
+                color: '#94a3b8',
+                font: { size: 10, family: 'JetBrains Mono' }
+              },
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } }
+            },
+            y: {
+              type: 'logarithmic',
+              min: 1,
+              max: 1200,
+              title: {
+                display: true,
+                text: 'Peak Shock Acceleration a (g)',
+                color: '#94a3b8',
+                font: { size: 10, family: 'JetBrains Mono' }
+              },
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: {
+                color: '#64748b',
+                font: { family: 'JetBrains Mono', size: 9 },
+                callback: function(value) {
+                  return value === 1 || value === 10 || value === 100 || value === 1000 ? value + 'g' : '';
+                }
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                boxWidth: 10,
+                color: '#94a3b8',
+                font: { size: 9, family: 'Inter' }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `λ: ${ctx.parsed.x.toFixed(2)} mm, a: ${ctx.parsed.y.toFixed(1)} g`
+              }
+            }
+          }
+        }
+      });
+
+      // 2. Shock Waveform Telemetry Chart
+      const ctxShock = document.getElementById('telemetryShockChart').getContext('2d');
+      const timeLabels = Array.from({ length: 40 }, (_, i) => `${(i * 2.5).toFixed(0)}μs`);
+      const emptyShock = Array(40).fill(0);
+
+      telemetryShockChart = new Chart(ctxShock, {
+        type: 'line',
+        data: {
+          labels: timeLabels,
+          datasets: [{
+            data: emptyShock,
+            borderColor: '#06b6d4',
+            borderWidth: 1.5,
+            fill: false,
+            tension: 0.3,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              display: false,
+              grid: { display: false }
+            },
+            y: {
+              min: -10,
+              max: 10,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#64748b', font: { size: 8 } }
+            }
+          }
+        }
+      });
+
+      // 3. Compartment Pressure Drop Chart
+      const ctxPressure = document.getElementById('telemetryPressureChart').getContext('2d');
+      const pressureLabels = Array.from({ length: 30 }, (_, i) => `-${30 - i}s`);
+      const baselinePressure = Array(30).fill(101.3);
+
+      telemetryPressureChart = new Chart(ctxPressure, {
+        type: 'line',
+        data: {
+          labels: pressureLabels,
+          datasets: [{
+            data: baselinePressure,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.2,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              display: false,
+              grid: { display: false }
+            },
+            y: {
+              min: 96.0,
+              max: 102.0,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#64748b', font: { size: 8 } }
+            }
+          }
+        }
+      });
+    }
+
+    // CANVAS SIZING FOR HIGH-DPI DISPLAYS
+    function resizeCanvas() {
+      const rect = hullCanvas.getBoundingClientRect();
+      const w = rect.width || 600;
+      const h = rect.height || 360;
+
+      hullCanvas.width = w * window.devicePixelRatio;
+      hullCanvas.height = h * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+
+    // DRAW HABITAT HULL GRAPHICS
+    function drawHull() {
+      const rect = hullCanvas.getBoundingClientRect();
+      const w = rect.width || 600;
+      const h = rect.height || 360;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // 1. Multi-Layer Hull Background Grid
+      ctx.fillStyle = '#05070f';
+      ctx.fillRect(0, 0, w, h);
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+      ctx.lineWidth = 1;
+      const stepX = w / 12;
+      const stepY = h / 6;
+
+      for (let x = 0; x <= w; x += stepX) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= h; y += stepY) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      // Aerogel Nano-Porous Texture Simulation Dots
+      ctx.fillStyle = 'rgba(6, 182, 212, 0.04)';
+      for (let i = 0; i < 45; i++) {
+        const dotX = ((i * 137.5) % w);
+        const dotY = ((i * 241.1) % h);
+        ctx.beginPath();
+        ctx.arc(dotX, dotY, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 2. TransHab Structural Boundary Frame & Longitudinal Restraint Straps
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(10, 10, w - 20, h - 20);
+
+      // High-Strength Kevlar Rib Straps (Horizontal)
+      ctx.strokeStyle = 'rgba(139, 92, 246, 0.15)';
+      ctx.lineWidth = 1.5;
+      [0.33, 0.66].forEach(ratio => {
+        ctx.beginPath();
+        ctx.moveTo(10, h * ratio);
+        ctx.lineTo(w - 10, h * ratio);
+        ctx.stroke();
+      });
+
+      // 3. Draw Acoustic Shock Wave Rings
+      for (let i = state.shockWaves.length - 1; i >= 0; i--) {
+        const wave = state.shockWaves[i];
+        wave.radius += 3.8;
+        wave.alpha *= 0.94;
+
+        ctx.strokeStyle = wave.color.replace('ALPHA', wave.alpha.toFixed(3));
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(wave.x * w, wave.y * h, wave.radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Second harmonic ring
+        if (wave.radius > 20) {
+          ctx.strokeStyle = wave.color.replace('ALPHA', (wave.alpha * 0.5).toFixed(3));
+          ctx.beginPath();
+          ctx.arc(wave.x * w, wave.y * h, wave.radius * 0.65, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        if (wave.alpha < 0.02 || wave.radius > wave.maxRadius) {
+          state.shockWaves.splice(i, 1);
+        }
+      }
+
+      // 4. Draw Piezo PZT Sensor Array
+      state.sensors.forEach(sensor => {
+        const sx = sensor.x * w;
+        const sy = sensor.y * h;
+
+        // Outer sensor beacon glow
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
+        ctx.beginPath();
+        ctx.arc(sx, sy, 14, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Disc boundary
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 7, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Center electrode
+        ctx.fillStyle = '#22d3ee';
+        ctx.beginPath();
+        ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Label
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px JetBrains Mono';
+        ctx.fillText(sensor.label, sx + 12, sy + 3);
+      });
+
+      // 5. Draw Punctures / Strike Holes
+      state.punctures.forEach((punc, idx) => {
+        const px = punc.x * w;
+        const py = punc.y * h;
+
+        if (punc.sealed) {
+          // Sealed with Polysiloxane Patch
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.35)';
+          ctx.strokeStyle = '#10b981';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(px, py, 11, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#a7f3d0';
+          ctx.font = '9px JetBrains Mono';
+          ctx.fillText(`SEALED #${idx+1}`, px + 14, py + 3);
+        } else {
+          // Active Leak Hole
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.arc(px, py, 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Pulsing warning ring
+          const pulse = (Date.now() / 200) % 15;
+          ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(px, py, 6 + pulse, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Outflowing gas plume particles
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+          for (let k = 0; k < 3; k++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 5 + Math.random() * 12;
+            ctx.fillRect(px + Math.cos(angle)*dist, py + Math.sin(angle)*dist, 1.5, 1.5);
+          }
+
+          ctx.fillStyle = '#fca5a5';
+          ctx.font = '9px JetBrains Mono';
+          ctx.fillText(`HOLE #${idx+1} [${(punc.x * state.hullWidth).toFixed(1)}m, ${(punc.y * state.hullHeight).toFixed(1)}m]`, px + 12, py - 6);
+        }
+      });
+
+      // 6. Draw Autonomous Sealing Drone
+      const dx = state.drone.x * w;
+      const dy = state.drone.y * h;
+
+      // Drone Body (Magnetic Crawler)
+      ctx.save();
+      ctx.translate(dx, dy);
+
+      // Crawler chassis glow
+      ctx.fillStyle = state.drone.patching ? 'rgba(245, 158, 11, 0.4)' : 'rgba(139, 92, 246, 0.25)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 16, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Main robotic body
+      ctx.fillStyle = '#1e1b4b';
+      ctx.strokeStyle = state.drone.patching ? '#f59e0b' : '#a78bfa';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-9, -9, 18, 18);
+      ctx.fillRect(-9, -9, 18, 18);
+
+      // Magnetic treads
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(-12, -10, 3, 20);
+      ctx.fillRect(9, -10, 3, 20);
+
+      // Central patch stamper nozzle
+      ctx.fillStyle = state.drone.patching ? '#ef4444' : '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+
+      // Drone Status Tag
+      ctx.fillStyle = state.drone.patching ? '#f59e0b' : '#c4b5fd';
+      ctx.font = '10px JetBrains Mono';
+      ctx.fillText(`SEAL-DRONE 01 [${state.drone.status}]`, dx + 18, dy + 4);
+
+      // Target Vector Line
+      if (state.drone.status.includes('INTERCEPT') || state.drone.status.includes('SEALING')) {
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(dx, dy);
+        ctx.lineTo(state.drone.targetX * w, state.drone.targetY * h);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    // MAIN PHYSICS & STATE UPDATE STEP
+    function updatePhysics() {
+      state.backgroundNoiseTick++;
+
+      // Drone Movement Logic
+      const dx = state.drone.targetX - state.drone.x;
+      const dy = state.drone.targetY - state.drone.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > 0.01) {
+        state.drone.x += (dx / dist) * state.drone.speed;
+        state.drone.y += (dy / dist) * state.drone.speed;
+      } else {
+        // Drone reached destination
+        const unsealedPuncture = state.punctures.find(p => !p.sealed && Math.hypot(p.x - state.drone.x, p.y - state.drone.y) < 0.03);
+        if (unsealedPuncture) {
+          state.drone.status = 'SEALING HOLE...';
+          state.drone.patching = true;
+          
+          setTimeout(() => {
+            unsealedPuncture.sealed = true;
+            state.drone.patching = false;
+            
+            // Check if more punctures exist
+            const nextHole = state.punctures.find(p => !p.sealed);
+            if (nextHole && state.drone.autoMode) {
+              state.drone.targetX = nextHole.x;
+              state.drone.targetY = nextHole.y;
+              state.drone.status = 'INTERCEPTING HOLE';
+            } else {
+              state.drone.targetX = 0.50;
+              state.drone.targetY = 0.50;
+              state.drone.status = 'RETURNING TO DOCK';
+              alertOverlay.classList.add('hidden');
+            }
+          }, 1200);
+        } else if (!state.punctures.some(p => !p.sealed)) {
+          state.drone.status = 'PATROL DOCK';
+          state.drone.patching = false;
+        }
+      }
+
+      // Pressure Decay & Stabilization
+      const activeLeaks = state.punctures.filter(p => !p.sealed).length;
+      if (activeLeaks > 0) {
+        state.currentPressure = Math.max(88.0, state.currentPressure - (activeLeaks * 0.035));
+        state.integrity = Math.max(78.0, 100.0 * (state.currentPressure / state.nominalPressure) - (activeLeaks * 0.4));
+        lblPressureDrop.textContent = `ΔP = -${(activeLeaks * 1.8).toFixed(1)} kPa/min`;
+        lblPressureDrop.className = 'text-[10px] text-rose-400 font-mono-code';
+      } else {
+        // Slowly recharge to nominal
+        if (state.currentPressure < state.nominalPressure) {
+          state.currentPressure = Math.min(state.nominalPressure, state.currentPressure + 0.02);
+          state.integrity = Math.min(99.88, 100.0 * (state.currentPressure / state.nominalPressure));
+        }
+        lblPressureDrop.textContent = `ΔP = 0.00 kPa/min`;
+        lblPressureDrop.className = 'text-[10px] text-emerald-400 font-mono-code';
+      }
+
+      // Decay Acceleration back to ambient vibration floor
+      if (state.accel > 15.0) {
+        state.accel *= 0.94;
+      } else {
+        state.accel = 12.0 + Math.sin(state.backgroundNoiseTick * 0.1) * 3.5;
+        state.wavelength = 0.8 + Math.cos(state.backgroundNoiseTick * 0.08) * 0.15;
+      }
+
+      // Update DOM Indicators
+      statIntegrity.textContent = `${state.integrity.toFixed(2)}%`;
+      barIntegrity.style.width = `${Math.min(100, Math.max(0, state.integrity))}%`;
+      if (state.integrity < 95) {
+        barIntegrity.className = 'bg-rose-500 h-full transition-all duration-300';
+        statIntegrity.className = 'text-2xl font-bold font-mono-code text-rose-400';
+      } else {
+        barIntegrity.className = 'bg-emerald-500 h-full transition-all duration-300';
+        statIntegrity.className = 'text-2xl font-bold font-mono-code text-emerald-400';
+      }
+
+      statAccel.textContent = `${state.accel.toFixed(1)} g`;
+      statPunctures.textContent = `Punctures: ${state.punctures.length}`;
+      statDroneState.textContent = state.drone.status;
+
+      // Update Telemetry Chart Buffers (Throttled update)
+      if (state.backgroundNoiseTick % 3 === 0) {
+        updateTelemetryCharts();
+      }
+
+      drawHull();
+    }
+
+    function updateTelemetryCharts() {
+      // 1. Phase Space Live Point
+      if (phaseSpaceChart) {
+        phaseSpaceChart.data.datasets[0].data = [{ x: state.wavelength, y: state.accel }];
+        phaseSpaceChart.update('none');
+      }
+
+      // 2. Shock waveform chart
+      if (telemetryShockChart) {
+        const shockData = telemetryShockChart.data.datasets[0].data;
+        shockData.shift();
+        
+        let sample = 0;
+        if (state.accel > 50) {
+          sample = (Math.sin(state.backgroundNoiseTick * 1.8) * (state.accel / 50.0)) + (Math.random() - 0.5) * 4;
+        } else {
+          sample = (Math.sin(state.backgroundNoiseTick * 0.4) * 0.8) + (Math.random() - 0.5) * 0.4;
+        }
+        shockData.push(sample);
+        telemetryShockChart.update('none');
+      }
+
+      // 3. Pressure history chart
+      if (telemetryPressureChart) {
+        const pData = telemetryPressureChart.data.datasets[0].data;
+        pData.shift();
+        pData.push(state.currentPressure);
+        telemetryPressureChart.update('none');
+      }
+    }
+
+    // INTERACTIVE EVENT GENERATORS
+    function triggerImpactEvent(normX, normY, isHypervelocity = true) {
+      if (isHypervelocity) {
+        // Extreme peak acceleration, ultra-short acoustic wavelength
+        state.accel = 320.0 + Math.random() * 450.0;
+        state.wavelength = 0.35 + Math.random() * 0.65; // shock wavelength in aerogel (mm)
+
+        // Discriminant calculation
+        // D = (a - a_thresh) / a_thresh + (lambda_crit - lambda) / lambda_crit
+        state.discriminant = ((state.accel - state.thresholdAccel) / state.thresholdAccel) + 
+                             ((state.cutoffWavelength - state.wavelength) / state.cutoffWavelength);
+
+        valDiscriminant.textContent = `+${state.discriminant.toFixed(2)} (PENETRATION DETECTED)`;
+        valDiscriminant.className = 'text-rose-400 font-bold';
+
+        statClassification.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500 inline-block"></span> MMOD Strike: PZT Shock Triggered`;
+        statClassification.className = 'text-xs text-rose-400 mt-2 flex items-center gap-1 font-mono-code';
+        alertOverlay.classList.remove('hidden');
+
+        // Add to puncture database
+        const newPunc = {
+          x: normX,
+          y: normY,
+          timestamp: Date.now(),
+          sealed: false,
+          size: 0.8 + Math.random() * 0.9
+        };
+        state.punctures.push(newPunc);
+
+        // Calculate Triangulation TDOA against S1-S4
+        const sDistances = state.sensors.map(s => Math.hypot(s.x - normX, s.y - normY));
+        const minD = Math.min(...sDistances);
+        const maxD = Math.max(...sDistances);
+        const deltaMicros = ((maxD - minD) * 12.0 / 1240.0) * 1e6; // sound speed in aerogel 1240 m/s
+
+        statTriangulation.textContent = `LOCKED (${(normX * 12).toFixed(1)}m, ${(normY * 6).toFixed(1)}m)`;
+        statTriangulation.className = 'text-2xl font-bold font-mono-code text-rose-400';
+        statDeltaT.textContent = `Time-Difference: Δt = ${deltaMicros.toFixed(2)} μs`;
+
+        // Vector Sealing Drone
+        if (state.drone.autoMode) {
+          state.drone.targetX = normX;
+          state.drone.targetY = normY;
+          state.drone.status = 'INTERCEPTING HOLE';
+          valVector.textContent = `Vectored to (${(normX * 12).toFixed(1)}m, ${(normY * 6).toFixed(1)}m)`;
+          valVector.className = 'text-amber-400 font-bold';
+        }
+
+        // Add shock wave rings to canvas
+        state.shockWaves.push({
+          x: normX,
+          y: normY,
+          radius: 4,
+          maxRadius: 280,
+          alpha: 1.0,
+          color: 'rgba(239, 68, 68, ALPHA)'
+        });
+
+      } else {
+        // Robotic Docking Thud / Astronaut Handrail Touch (Benign)
+        state.accel = 18.0 + Math.random() * 15.0; // low acceleration
+        state.wavelength = 3.2 + Math.random() * 1.8; // broad structural wavelength (mm)
+
+        state.discriminant = -3.85;
+        valDiscriminant.textContent = `${state.discriminant.toFixed(2)} (BENIGN CONTACT)`;
+        valDiscriminant.className = 'text-cyan-400 font-bold';
+
+        statClassification.innerHTML = `<span class="w-2 h-2 rounded-full bg-cyan-400 inline-block"></span> Benign Docking Contact Rejected`;
+        statClassification.className = 'text-xs text-cyan-400 mt-2 flex items-center gap-1 font-mono-code';
+
+        statTriangulation.textContent = `REJECTED (NO HOLE)`;
+        statTriangulation.className = 'text-2xl font-bold font-mono-code text-cyan-300';
+        statDeltaT.textContent = `Transient Duration: τ = 14.2 ms`;
+
+        // Blue gentle wave
+        state.shockWaves.push({
+          x: normX,
+          y: normY,
+          radius: 5,
+          maxRadius: 180,
+          alpha: 0.8,
+          color: 'rgba(59, 130, 246, ALPHA)'
+        });
+      }
+    }
+
+    function injectHypervelocityStrike() {
+      // Pick random spot away from edges
+      const rx = 0.25 + Math.random() * 0.50;
+      const ry = 0.25 + Math.random() * 0.50;
+      triggerImpactEvent(rx, ry, true);
+    }
+
+    function injectDockingThud() {
+      // Right edge docking port area
+      triggerImpactEvent(0.88, 0.45 + (Math.random() - 0.5) * 0.2, false);
+    }
+
+    function clearAllEvents() {
+      state.punctures = [];
+      state.shockWaves = [];
+      state.currentPressure = state.nominalPressure;
+      state.integrity = 99.88;
+      state.accel = 14.2;
+      state.wavelength = 0.82;
+      state.drone.targetX = 0.50;
+      state.drone.targetY = 0.50;
+      state.drone.status = 'PATROL DOCK';
+      state.drone.patching = false;
+      alertOverlay.classList.add('hidden');
+
+      statTriangulation.textContent = 'STANDBY';
+      statTriangulation.className = 'text-2xl font-bold font-mono-code text-violet-300';
+      statDeltaT.textContent = 'Time-Difference: Δt = 0.00 μs';
+      valDiscriminant.textContent = '-2.41 (BENIGN)';
+      valDiscriminant.className = 'text-emerald-400 font-bold';
+      valVector.textContent = 'IDLE - Holding Position';
+      valVector.className = 'text-gray-400';
+      statClassification.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span> Normal Background Vibration`;
+      statClassification.className = 'text-xs text-gray-400 mt-2 flex items-center gap-1 font-mono-code';
+    }
+
+    // CANVAS CLICK INTERACTION
+    hullCanvas.addEventListener('click', (e) => {
+      const rect = hullCanvas.getBoundingClientRect();
+      const clickX = (e.clientX - rect.left) / rect.width;
+      const clickY = (e.clientY - rect.top) / rect.height;
+
+      // Default to hypervelocity strike on direct user canvas click
+      triggerImpactEvent(clickX, clickY, true);
+    });
+
+    // CONTROLS HANDLERS
+    function updateSensorSensitivity(val) {
+      state.thresholdAccel = parseFloat(val);
+      document.getElementById('sliderSensVal').textContent = `${val} g`;
+    }
+
+    function updateCutoffWavelength(val) {
+      state.cutoffWavelength = parseFloat(val);
+      document.getElementById('sliderCutoffVal').textContent = `${val} mm`;
+    }
+
+    function toggleAutoDrone() {
+      state.drone.autoMode = !state.drone.autoMode;
+      const btn = document.getElementById('btnAutoMode');
+      if (state.drone.autoMode) {
+        btn.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> ACTIVE AUTO-VECTORED`;
+        btn.className = 'px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-mono-code flex items-center gap-1.5';
+      } else {
+        btn.innerHTML = `<span class="w-2 h-2 rounded-full bg-gray-500"></span> MANUAL OVERRIDE`;
+        btn.className = 'px-2.5 py-1 rounded bg-gray-800 text-gray-300 border border-gray-700 text-xs font-mono-code flex items-center gap-1.5';
+      }
+    }
+
+    // INITIALIZATION ON WINDOW LOAD
+    window.onload = function() {
+      lucide.createIcons();
+      initCharts();
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      // Animation Loop (40ms interval for rock-solid stability)
+      setInterval(updatePhysics, 40);
+    };
+  </script>
+</body>
+</html>
